@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BOATX Dark Mode Landing with Styled Tab Bar & Hamburger</title>
+<style>
+  /* Reset */
+  * {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+  html, body {
+    height: 100%; overflow: hidden;
+    background-color: #000;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    color: #a0cfff;
+  }
+  #particle-canvas {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 100%;
+    display: block; z-index: 0; pointer-events: none;
+  }
+  #mouse-glow {
+    position: fixed; top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    pointer-events: none; z-index: 1; mix-blend-mode: screen;
+  }
+  /* Top Tab Bar with border */
+  #top-tabbar {
+    position: fixed; top: 0; left: 0;
+    width: 100%; height: 56px;
+    background: rgba(0, 0, 0, 0.65);
+    backdrop-filter: blur(16px);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 24px;
+    box-shadow: 0 1px 20px rgba(10, 130, 255, 0.6);
+    border: 1.8px solid rgba(42, 184, 255, 0.5);
+    border-radius: 0 0 14px 14px;
+    z-index: 5; user-select: none;
+  }
+  #tabbar-left {
+    display: flex; flex-direction: column; user-select: none;
+  }
+  #tabbar-left #tabbar-title {
+    font-size: 1.6rem; font-weight: 900;
+    color: #2ab8ff;
+    text-shadow:
+      0 0 6px #1fa6ff,
+      0 0 12px #2ab8ff,
+      0 0 18px #3cc9ff,
+      0 0 24px #65d8ff,
+      0 0 33px #81e2ff;
+    letter-spacing: 0.12em;
+    line-height: 1.1;
+  }
+  #tabbar-left #tabbar-subtitle {
+    font-size: 0.75rem; font-weight: 500;
+    color: #a0cfff; font-style: italic;
+    margin-top: 2px;
+  }
+  /* Hamburger container with glowing background */
+  #hamburger-button {
+    width: 44px; height: 36px;
+    position: relative;
+    cursor: pointer;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 4px;
+    border-radius: 10px;
+    background: rgba(10, 100, 220, 0.12);
+    box-shadow:
+      0 0 8px #1a74ff,
+      inset 0 0 9px #2caaff;
+    transition: background 0.3s ease;
+  }
+  #hamburger-button:hover {
+    background: rgba(10, 130, 255, 0.18);
+    box-shadow:
+      0 0 18px #33b3ff,
+      inset 0 0 16px #55ccff;
+  }
+  /* Hamburger lines with glowing border */
+  #hamburger-button span {
+    display: block;
+    height: 4px;
+    border-radius: 3px;
+    position: relative;
+    background-color: #a0cfff;
+    box-shadow:
+      0 0 7px #5fbaff,
+      inset 0 0 9px #5fbaff;
+    transition: all 0.3s ease;
+  }
+  #hamburger-button span::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 3px;
+    border: 1.8px solid rgba(160, 207, 255, 0.8);
+    pointer-events: none;
+  }
+  /* Hamburger transform on active */
+  #hamburger-button.active span:nth-child(1) {
+    transform: translateY(12px) rotate(45deg);
+  }
+  #hamburger-button.active span:nth-child(2) {
+    opacity: 0;
+  }
+  #hamburger-button.active span:nth-child(3) {
+    transform: translateY(-12px) rotate(-45deg);
+  }
+  /* Dropdown panel */
+  #dropdown-panel {
+    position: fixed; top: 56px; right: 24px;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(14px);
+    border: 1px solid #2a95ff;
+    border-radius: 10px;
+    padding: 12px 20px;
+    display: none;
+    gap: 16px;
+    z-index: 6;
+    flex-direction: row;
+    box-shadow: 0 0 18px rgba(42,184,255,0.6);
+    user-select: none;
+  }
+  #dropdown-panel.show {
+    display: flex;
+    animation: dropdownFadeIn 0.3s ease forwards;
+  }
+  @keyframes dropdownFadeIn {
+    0% {opacity: 0; transform: translateY(-10px);}
+    100% {opacity: 1; transform: translateY(0);}
+  }
+  .dropdown-btn {
+    flex: 1 1 auto;
+    padding: 10px 22px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: #a0cfff;
+    background: transparent;
+    border: 1.8px solid #5fbaff;
+    border-radius: 30px;
+    cursor: pointer;
+    box-shadow: 0 0 10px rgba(42,184,255,0.5),
+                inset 0 0 8px rgba(42,184,255,0.3);
+    transition: color 0.35s ease, border-color 0.35s ease,
+                box-shadow 0.6s ease, transform 0.3s ease;
+    user-select: none;
+    white-space: nowrap;
+  }
+  .dropdown-btn:hover {
+    color: #fff;
+    border-color: #33cfff;
+    box-shadow: 0 0 28px #33cfff,
+                inset 0 0 15px #33cfff;
+    transform: scale(1.05);
+  }
+  .dropdown-btn:active {
+    transform: scale(0.97);
+  }
+  /* Combined central UI container with blurred border */
+  #combined-ui {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    width: 320px;
+    max-width: 90vw;
+    padding: 32px 24px 36px 24px;
+    background: rgba(0, 0, 0, 0.35);
+    border: 0.8px solid rgba(160, 207, 255, 0.18);
+    border-radius: 14px;
+    backdrop-filter: blur(10px);
+    color: #90c9ff;
+    box-sizing: border-box;
+    text-align: center;
+    opacity: 0;
+    filter: blur(8px);
+    transform: translate(-50%, -50%);
+    animation: fadeInBlur 1.8s ease forwards;
+    z-index: 3;
+    user-select: none;
+  }
+  @keyframes fadeInBlur {
+    0% {
+      opacity: 0;
+      filter: blur(8px);
+    }
+    100% {
+      opacity: 1;
+      filter: blur(0);
+    }
+  }
+  #combined-ui h1 {
+    font-size: 2rem;
+    font-weight: 900;
+    color: #2ab8ff;
+    text-shadow:
+      0 0 6px #1fa6ff,
+      0 0 12px #2ab8ff,
+      0 0 18px #3cc9ff,
+      0 0 24px #65d8ff,
+      0 0 33px #81e2ff;
+    letter-spacing: 0.1em;
+    margin-bottom: 8px;
+    user-select: none;
+  }
+  #combined-ui .subtitle {
+    font-size: 0.85rem;
+    font-weight: 500;
+    color: #a0cfff;
+    font-style: italic;
+    margin-bottom: 28px;
+    user-select: none;
+  }
+  /* Button smaller with smooth transitions */
+  #get-link-btn {
+    font-size: 1.1rem;
+    font-weight: 700;
+    padding: 11px 48px;
+    color: #a0cfff;
+    background: transparent;
+    border: 1.5px solid #5fbaff;
+    border-radius: 40px;
+    cursor: pointer;
+    box-shadow:
+      0 0 7px rgba(42, 184, 255, 0.5),
+      inset 0 0 5px rgba(42, 184, 255, 0.3);
+    outline-offset: 3px;
+    transition:
+      color 0.5s ease,
+      border-color 0.5s ease,
+      box-shadow 0.8s ease,
+      transform 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+  }
+  /* twinkle animation */
+  @keyframes twinkle {
+    0%, 100% {
+      text-shadow:
+        0 0 6px #a0cfff,
+        0 0 15px #5fbaff,
+        0 0 30px #2ab8ff;
+      color: #a0cfff;
+    }
+    50% {
+      text-shadow:
+        0 0 14px #d0eaff,
+        0 0 38px #66c1ff,
+        0 0 48px #00c1ff;
+      color: #d0eaff;
+    }
+  }
+  #get-link-btn.hovered {
+    color: #ffffff;
+    border-color: #00c1ff;
+    box-shadow:
+      0 0 22px #00c1ff,
+      inset 0 0 14px #00c1ff;
+    animation: twinkle 2.5s infinite ease-in-out;
+  }
+  #get-link-btn.clicked {
+    transform: scale(0.92);
+    color: #e0f8ff;
+    border-color: #33cfff;
+    box-shadow:
+      0 0 32px #33cfff,
+      inset 0 0 20px #33cfff;
+    cursor: wait;
+    pointer-events: none;
+    animation: twinkle 2.5s infinite ease-in-out;
+  }
+  /* Responsive */
+  @media (max-width: 480px) {
+    #border-glow {
+      width: 260px;
+      height: 140px;
+    }
+    #combined-ui {
+      width: 90vw;
+      padding: 28px 20px 32px 20px;
+    }
+    #combined-ui h1 {
+      font-size: 1.6rem;
+    }
+    #combined-ui .subtitle {
+      font-size: 0.7rem;
+      margin-bottom: 22px;
+    }
+    #get-link-btn {
+      font-size: 1rem;
+      padding: 9px 38px;
+    }
+    #dropdown-panel {
+      right: 12px;
+      padding: 10px 16px;
+      gap: 8px;
+    }
+    .dropdown-btn {
+      font-size: 0.9rem;
+      padding: 9px 18px;
+    }
+    #hamburger-button {
+      width: 40px; height: 32px;
+    }
+  }
+</style>
+</head>
+<body>
+<!-- Background canvases -->
+<canvas id="particle-canvas"></canvas>
+<canvas id="mouse-glow"></canvas>
+
+<!-- Top Tab Bar -->
+<header id="top-tabbar" role="banner" aria-label="Site navigation and menu">
+  <div id="tabbar-left">
+    <div id="tabbar-title">BOATX</div>
+    <div id="tabbar-subtitle">WEBSITE MADE BY IMC72S</div>
+  </div>
+  <button id="hamburger-button" aria-label="Toggle menu" aria-expanded="false" aria-controls="dropdown-panel" type="button" >
+    <span></span>
+    <span></span>
+    <span></span>
+  </button>
+</header>
+
+<!-- Dropdown panel with extra buttons -->
+<nav id="dropdown-panel" role="menu" aria-hidden="true">
+  <button class="dropdown-btn" aria-label="Go to Discord" type="button" id="btn-discord">GO TO DISCORD</button>
+  <button class="dropdown-btn" aria-label="Go to Instagram" type="button" id="btn-instagram">GO TO INSTAGRAM</button>
+</nav>
+
+<!-- Combined Central UI container -->
+<div id="combined-ui" role="main" aria-label="Get link section">
+  <h1>BOATX</h1>
+  <div class="subtitle">กด get linkเพื่อไปที่ลิ้งโหลดได้เลย🌠</div>
+  <button id="get-link-btn" aria-label="Get Link button" type="button">GET LINK</button>
+</div>
+
+<script>
+(() => {
+  // Particle background
+  const canvas = document.getElementById('particle-canvas');
+  const ctx = canvas.getContext('2d');
+  const glowCanvas = document.getElementById('mouse-glow');
+  const glowCtx = glowCanvas.getContext('2d');
+  let width, height;
+  let particles = [];
+  const particleCount = 20;
+  const maxParticleSize = 7;
+  const maxSpeed = 0.6;
+  let burstParticles = [];
+
+  function randomRange(min, max) {
+    return Math.random() * (max - min) + min;
+  }
+
+  class Particle {
+    constructor() { this.init(); }
+    init() {
+      this.x = randomRange(0, width);
+      this.y = randomRange(height, height + 100);
+      this.size = randomRange(0.5, maxParticleSize);
+      this.speedY = randomRange(0.2, maxSpeed);
+      this.speedX = randomRange(-0.1, 0.1);
+      this.alpha = randomRange(0.3, 0.8);
+      this.glowColor = `rgba(100, 200, 255, ${this.alpha})`;
+      this.radius = this.size;
+    }
+    update() {
+      this.y -= this.speedY;
+      this.x += this.speedX;
+      if (this.y < -10 || this.x < -10 || this.x > width + 10) {
+        this.init();
+        this.y = height + 10;
+      }
+    }
+    draw(ctx) {
+      const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 10);
+      gradient.addColorStop(0, `rgba(100, 200, 255, ${this.alpha})`);
+      gradient.addColorStop(0.3, `rgba(100, 200, 255, ${this.alpha * 0.15})`);
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius * 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = this.glowColor;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  class BurstParticle {
+    constructor(x, y, angle, speed) {
+      this.x = x;
+      this.y = y;
+      this.radius = randomRange(2, 5);
+      this.angle = angle;
+      this.speed = speed;
+      this.speedX = Math.cos(angle) * speed;
+      this.speedY = Math.sin(angle) * speed;
+      this.alpha = 1;
+      this.decay = randomRange(0.01, 0.02);
+      this.friction = 0.92;
+      this.gravity = 0.06;
+      this.glowColor = 'rgba(0, 190, 255,';
+    }
+    update() {
+      this.speedX *= this.friction;
+      this.speedY *= this.friction;
+      this.speedY += this.gravity;
+      this.x += this.speedX;
+      this.y += this.speedY;
+      this.alpha -= this.decay;
+      if (this.alpha < 0) this.alpha = 0;
+      this.radius *= 0.95;
+      if (this.radius < 0.1) this.radius = 0.1;
+    }
+    draw(ctx) {
+      if (this.alpha <= 0) return;
+      const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius * 5);
+      gradient.addColorStop(0, `${this.glowColor}${this.alpha})`);
+      gradient.addColorStop(0.3, `${this.glowColor}${this.alpha * 0.2})`);
+      gradient.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius * 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = `${this.glowColor}${this.alpha})`;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    isDead() {
+      return this.alpha <= 0 || this.radius <= 0.1;
+    }
+  }
+
+  function resize() {
+    width = window.innerWidth;
+    height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
+    glowCanvas.width = width;
+    glowCanvas.height = height;
+  }
+
+  function initParticles() {
+    particles = [];
+    for(let i=0; i<particleCount; i++) {
+      particles.push(new Particle());
+    }
+  }
+
+  const mouse = {x: width/2, y: height/2, radius: 100, active: false};
+  window.addEventListener('mousemove', e => {
+    mouse.x = e.clientX;
+    mouse.y = e.clientY;
+    mouse.active = true;
+  });
+  window.addEventListener('mouseout', () => { mouse.active = false; });
+
+  window.addEventListener('click', e => {
+    const burstCount = 40;
+    const angleStep = (Math.PI * 2) / burstCount;
+    const baseSpeed = randomRange(3, 5);
+    for(let i=0; i<burstCount; i++) {
+      const angle = i * angleStep + (Math.random() - 0.5) * angleStep * 0.7;
+      const speed = baseSpeed * (0.7 + Math.random() * 0.6);
+      burstParticles.push(new BurstParticle(e.clientX, e.clientY, angle, speed));
+    }
+  });
+
+  function animate() {
+    ctx.clearRect(0, 0, width, height);
+    glowCtx.clearRect(0, 0, width, height);
+
+    particles.forEach(p => {
+      if(mouse.active) {
+        const dx = p.x - mouse.x;
+        const dy = p.y - mouse.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if(dist < mouse.radius && dist > 0) {
+          const angle = Math.atan2(dy, dx);
+          const force = (mouse.radius - dist) / mouse.radius * 0.5;
+          p.x += Math.cos(angle) * force;
+          p.y += Math.sin(angle) * force;
+        }
+      }
+      p.update();
+      p.draw(ctx);
+    });
+
+    burstParticles = burstParticles.filter(p => !p.isDead());
+    burstParticles.forEach(p => {
+      p.update();
+      p.draw(ctx);
+    });
+
+    if(mouse.active) {
+      const gradient = glowCtx.createRadialGradient(mouse.x, mouse.y, 0, mouse.x, mouse.y, mouse.radius);
+      gradient.addColorStop(0, 'rgba(100, 200, 255, 0.15)');
+      gradient.addColorStop(1, 'rgba(100, 200, 255, 0)');
+      glowCtx.fillStyle = gradient;
+      glowCtx.beginPath();
+      glowCtx.arc(mouse.x, mouse.y, mouse.radius, 0, Math.PI * 2);
+      glowCtx.fill();
+    }
+    requestAnimationFrame(animate);
+  }
+
+  function init() {
+    resize();
+    initParticles();
+    animate();
+  }
+  window.addEventListener('resize', resize);
+  init();
+
+  // Button glow hover and click with delayed redirect
+  const button = document.getElementById('get-link-btn');
+  let isClicked = false;
+
+  button.addEventListener('mouseenter', () => {
+    if(!isClicked) button.classList.add('hovered');
+  });
+  button.addEventListener('mouseleave', () => {
+    if(!isClicked) button.classList.remove('hovered');
+  });
+  button.addEventListener('click', () => {
+    if(isClicked) return;
+    isClicked = true;
+    button.classList.remove('hovered');
+    button.classList.add('clicked');
+    setTimeout(() => {
+      window.open('https://lo.link', '_blank');
+      isClicked = false;
+      button.classList.remove('clicked');
+    }, 1500);
+  });
+
+  // Tabbar hamburger menu toggle
+  const hamburger = document.getElementById('hamburger-button');
+  const dropdownPanel = document.getElementById('dropdown-panel');
+
+  function setMenuOpen(open) {
+    if(open) {
+      hamburger.classList.add('active');
+      dropdownPanel.classList.add('show');
+      hamburger.setAttribute('aria-expanded', 'true');
+      dropdownPanel.setAttribute('aria-hidden', 'false');
+    } else {
+      hamburger.classList.remove('active');
+      dropdownPanel.classList.remove('show');
+      hamburger.setAttribute('aria-expanded', 'false');
+      dropdownPanel.setAttribute('aria-hidden', 'true');
+    }
+  }
+
+  hamburger.addEventListener('click', () => {
+    const isOpen = hamburger.classList.contains('active');
+    setMenuOpen(!isOpen);
+  });
+  window.addEventListener('click', e => {
+    if(!dropdownPanel.contains(e.target) && !hamburger.contains(e.target)) {
+      setMenuOpen(false);
+    }
+  });
+
+  document.getElementById('btn-discord').addEventListener('click', () => {
+    window.open('https://discord.gg/tzXTxQU94h', '_blank');
+  });
+  document.getElementById('btn-instagram').addEventListener('click', () => {
+    window.open('https://www.instagram.com/imc72s/.com', '_blank');
+  });
+})();
+</script>
+</body>
+</html>
